@@ -144,7 +144,10 @@ def dump(exif_dict_original):
     zeroth_bytes = (zeroth_set[0] + exif_pointer + gps_pointer +
                     first_ifd_pointer + zeroth_set[1])
     if exif_is:
-        exif_bytes = exif_set[0] + interop_pointer + exif_set[1]
+        if interop_pointer:
+            exif_bytes = exif_set[0][:-4] + interop_pointer + b"\x00\x00\x00\x00" + exif_set[1]
+        else:
+            exif_bytes = exif_set[0] + exif_set[1]
 
     return (header + zeroth_bytes + exif_bytes + gps_bytes +
             interop_bytes + first_bytes)
@@ -306,10 +309,7 @@ def _value_to_bytes(raw_value, value_type, offset):
 def _dict_to_bytes(ifd_dict, ifd, ifd_offset):
     tag_count = len(ifd_dict)
     entry_header = struct.pack(">H", tag_count)
-    if ifd in ("0th", "1st"):
-        entries_length = 2 + tag_count * 12 + 4
-    else:
-        entries_length = 2 + tag_count * 12
+    entries_length = 2 + tag_count * 12 + 4
     entries = b""
     values = b""
 
@@ -343,4 +343,8 @@ def _dict_to_bytes(ifd_dict, ifd, ifd_offset):
 
         entries += key_str + type_str + length_str + value_str
         values += four_bytes_over
+
+    if ifd not in ("0th", "1st"):
+        entries += b"\x00\x00\x00\x00"
+
     return (entry_header + entries, values)
